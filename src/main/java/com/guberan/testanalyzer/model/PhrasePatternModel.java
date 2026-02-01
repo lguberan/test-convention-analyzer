@@ -45,7 +45,7 @@ public final class PhrasePatternModel {
      */
     private static final String ANY = "<any>";
 
-    private final Map<String, ProjectStats.MetricItem> patternMap = new HashMap<>();
+    private final Map<String, ProjectAnalysis.MetricItem> patternMap = new HashMap<>();
     private final boolean granular; // true => <w> <w> ; false => <any>
     private long total = 0;
 
@@ -146,12 +146,12 @@ public final class PhrasePatternModel {
         total++;
 
         String pattern = toPattern(tokens, granular);
-        patternMap.merge(pattern, new ProjectStats.MetricItem(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
+        patternMap.merge(pattern, new ProjectAnalysis.MetricItem(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
     }
 
-    private ProjectStats.MetricItem mergeMetrictems(ProjectStats.MetricItem item1, ProjectStats.MetricItem item2) {
+    private ProjectAnalysis.MetricItem mergeMetrictems(ProjectAnalysis.MetricItem item1, ProjectAnalysis.MetricItem item2) {
 
-        return new ProjectStats.MetricItem(item1.getName(),
+        return new ProjectAnalysis.MetricItem(item1.getName(),
                 item1.getCount() + item2.getCount(),
                 item1.getPercent() + item2.getPercent(),
                 StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
@@ -159,17 +159,17 @@ public final class PhrasePatternModel {
     }
 
 
-    public void createPatternReport(ProjectStats stats) {
+    public void createPatternReport(ProjectAnalysis projectAnalysis) {
 
-        List<ProjectStats.MetricItem> top50Patterns = patternMap.values().stream()
+        List<ProjectAnalysis.MetricItem> top50Patterns = patternMap.values().stream()
                 .sorted()
                 .limit(DEFAULT_TOP_K)
                 .toList();
 
-        stats.addReport(
-                new ProjectStats.MetricReport(
-                        ProjectStats.ReportEnum.PATTERNS.name(),
-                        ProjectStats.ReportEnum.PATTERNS.ordinal(),
+        projectAnalysis.addReport(
+                new ProjectAnalysis.MetricsReport(
+                        ProjectAnalysis.ReportId.PATTERNS.name(),
+                        ProjectAnalysis.ReportId.PATTERNS.ordinal(),
                         "Patterns",
                         "Builds common phrase templates from test method names. Method names are tokenized (camelCase, _, -), normalized (e.g., throw/throws → Throws, assert/expect → Expect), keywords are preserved as anchors, and all other words are replaced with <w> (granular) or <any> (compressed). The most frequent patterns are then reported.",
                         "",

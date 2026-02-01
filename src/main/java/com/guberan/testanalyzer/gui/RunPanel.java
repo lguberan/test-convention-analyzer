@@ -1,6 +1,6 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ProjectStats;
+import com.guberan.testanalyzer.model.ProjectAnalysis;
 import com.guberan.testanalyzer.service.GitService;
 import com.guberan.testanalyzer.service.TestAnalyzer;
 import lombok.Setter;
@@ -55,7 +55,7 @@ public class RunPanel extends JPanel {
      * Callback invoked when analysis completes successfully.
      */
     @Setter
-    private Consumer<ProjectStats> onResults = s -> {
+    private Consumer<ProjectAnalysis> onResults = s -> {
     };
 
     public RunPanel() {
@@ -148,9 +148,9 @@ public class RunPanel extends JPanel {
         var url = Optional.ofNullable(urlField.getText()).map(String::trim).filter(s -> !s.isBlank());
         var localPath = Optional.ofNullable(pathField.getText()).map(String::trim).filter(s -> !s.isBlank());
 
-        SwingWorker<ProjectStats, String> worker = new SwingWorker<>() {
+        SwingWorker<ProjectAnalysis, String> worker = new SwingWorker<>() {
             @Override
-            protected ProjectStats doInBackground() throws Exception {
+            protected ProjectAnalysis doInBackground() throws Exception {
                 Path root;
                 if (url.isPresent()) {
                     publish("Cloning repository…");

@@ -99,25 +99,23 @@ public class NamingModel {
 
     }
 
-    public void createNamingReport(ProjectStats stats) {
-
-        List<ProjectStats.MetricItem> metricItems = new ArrayList<>();
-
-        List<ProjectStats.MetricItem> metrics = new ArrayList<>();
-        metrics.add(new ProjectStats.MetricItem("All tests", this.totalTestMethods, 1.0f, ""));
-        metrics.add(new ProjectStats.MetricItem("@DisplayName annotation", displayAnnotUsed, (float) displayAnnotUsed / totalTestMethods, String.join("\n", displayAnnotUsedExamples)));
-        metrics.add(new ProjectStats.MetricItem("Start with \"test\"", startsWithTest, (float) startsWithTest / totalTestMethods, String.join("\n", startsWithTestExamples)));
-        metrics.add(new ProjectStats.MetricItem("follows pattern ..When..Then...", hasWhenThen, (float) hasWhenThen / totalTestMethods, String.join("\n", hasWhenThenExamples)));
-        metrics.add(new ProjectStats.MetricItem("Is like a phrase", phraseLike, (float) phraseLike / totalTestMethods, String.join("\n", phraseLikeExamples)));
-        metrics.add(new ProjectStats.MetricItem("same name for source and test", sameAsSourceMethod, (float) sameAsSourceMethod / totalTestMethods, String.join("\n", sameAsSourceMethodExamples)));
-        metrics.add(new ProjectStats.MetricItem("contains \"_\"", containsUnderscore, (float) containsUnderscore / totalTestMethods, String.join("\n", containsUnderscoreExamples)));
-        metrics.add(new ProjectStats.MetricItem("no CamelCase", noCamelCase, (float) noCamelCase / totalTestMethods, String.join("\n", noCamelCaseExamples)));
+    public void createNamingReport(ProjectAnalysis projectAnalysis) {
+        
+        List<ProjectAnalysis.MetricItem> metrics = new ArrayList<>();
+        metrics.add(new ProjectAnalysis.MetricItem("All tests", this.totalTestMethods, 1.0f, ""));
+        metrics.add(new ProjectAnalysis.MetricItem("@DisplayName annotation", displayAnnotUsed, (float) displayAnnotUsed / totalTestMethods, String.join("\n", displayAnnotUsedExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("Start with \"test\"", startsWithTest, (float) startsWithTest / totalTestMethods, String.join("\n", startsWithTestExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("follows pattern ..When..Then...", hasWhenThen, (float) hasWhenThen / totalTestMethods, String.join("\n", hasWhenThenExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("Is like a phrase", phraseLike, (float) phraseLike / totalTestMethods, String.join("\n", phraseLikeExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("same name for source and test", sameAsSourceMethod, (float) sameAsSourceMethod / totalTestMethods, String.join("\n", sameAsSourceMethodExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("contains \"_\"", containsUnderscore, (float) containsUnderscore / totalTestMethods, String.join("\n", containsUnderscoreExamples)));
+        metrics.add(new ProjectAnalysis.MetricItem("no CamelCase", noCamelCase, (float) noCamelCase / totalTestMethods, String.join("\n", noCamelCaseExamples)));
 
 
-        stats.addReport(
-                new ProjectStats.MetricReport(
-                        ProjectStats.ReportEnum.TEST_METHOD_NAMING.name(),
-                        ProjectStats.ReportEnum.TEST_METHOD_NAMING.ordinal(),
+        projectAnalysis.addReport(
+                new ProjectAnalysis.MetricsReport(
+                        ProjectAnalysis.ReportId.TEST_METHOD_NAMING.name(),
+                        ProjectAnalysis.ReportId.TEST_METHOD_NAMING.ordinal(),
                         "Test naming",
                         "How test method names are written (prefix 'test', underscores, camelCase, @DisplayName, etc.).",
                         "",

@@ -10,13 +10,11 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-public class ProjectStats {
+public class ProjectAnalysis {
 
     private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("0.00%");
 
-    private final Map<String, MetricReport> reports = new HashMap<>();
-
-    StringBuilder sb = new StringBuilder();
+    private final Map<String, MetricsReport> reports = new HashMap<>();
 
     private String projectRoot;
     private ConventionSummary conventionSummary;
@@ -24,37 +22,18 @@ public class ProjectStats {
     private String patternSummary;
 
 
-    public MetricReport addReport(MetricReport report) {
+    public MetricsReport addReport(MetricsReport report) {
         reports.put(report.getId(), report);
         return report;
     }
 
-    public MetricReport getReport(String id) {
+    public MetricsReport getReport(String id) {
         return reports.get(id);
     }
 
-    public double ratio(long a, long b) {
-        if (b == 0) return 0.0;
-        return ((double) a) / ((double) b);
-    }
-
     public String prettySummary() {
+        StringBuilder sb = new StringBuilder();
         sb.append("Project root: ").append(projectRoot).append("\n\n");
-
-//        sb.append("Files scanned: ").append(totalFiles).append("\n");
-//        sb.append(".java files:   ").append(totalJavaFiles).append(" (").append(PERCENT_FORMAT.format(ratio(totalJavaFiles, totalFiles))).append(")\n");
-//        sb.append("  - sources:   ").append(totalJavaSourceFiles).append(" (").append(PERCENT_FORMAT.format(ratio(totalJavaSourceFiles, totalJavaFiles))).append(")\n");
-//        sb.append("  - tests:     ").append(totalJavaTestFiles).append(" (").append(PERCENT_FORMAT.format(ratio(totalJavaTestFiles, totalJavaFiles))).append(")\n\n");
-
-//        if (testNamingStats != null) {
-//            var t = testNamingStats;
-//            sb.append("Test methods detected: ").append(t.getTotalTestMethods()).append("\n");
-//            sb.append("  startsWith 'test':   ").append(t.getStartsWithTest()).append(" (").append(PERCENT_FORMAT.format(ratio(t.getStartsWithTest(), t.getTotalTestMethods()))).append(")\n");
-//            sb.append("  contains '_':        ").append(t.getContainsUnderscore()).append(" (").append(PERCENT_FORMAT.format(ratio(t.getContainsUnderscore(), t.getTotalTestMethods()))).append(")\n");
-//            sb.append("  camelCase:           ").append(t.getCamelCase()).append(" (").append(PERCENT_FORMAT.format(ratio(t.getCamelCase(), t.getTotalTestMethods()))).append(")\n");
-//            sb.append("  @DisplayName used:   ").append(t.getDisplayNameUsed()).append(" (").append(PERCENT_FORMAT.format(ratio(t.getDisplayNameUsed(), t.getTotalTestMethods()))).append(")\n");
-//            sb.append("  same as source meth: ").append(t.getSameAsSourceMethod()).append(" (").append(PERCENT_FORMAT.format(ratio(t.getSameAsSourceMethod(), t.getTotalTestMethods()))).append(")\n\n");
-//        }
 
         if (conventionSummary != null) {
             sb.append("De-facto convention:\n");
@@ -65,11 +44,11 @@ public class ProjectStats {
         return sb.toString();
     }
 
-    public enum ReportEnum {SUMMARY, FILE_TYPES, SRC_VS_TEST, TEST_METHOD_NAMING, TOKENS, PATTERNS}
+    public enum ReportId {SUMMARY, FILE_TYPES, SRC_VS_TEST, TEST_METHOD_NAMING, TOKENS, PATTERNS}
 
     @Data
     @AllArgsConstructor
-    public static final class MetricReport implements Comparable<MetricReport> {
+    public static final class MetricsReport implements Comparable<MetricsReport> {
         private String id;
         private int order;
         private String name;
@@ -78,11 +57,13 @@ public class ProjectStats {
         private long totalCount;
         private List<MetricItem> items;
 
-        public MetricReport(String id, int order, String name, String summary) {
+        public MetricsReport(String id, int order, String name, String summary) {
+            this.id = id;
             this.name = name;
             this.order = order;
             this.summary = summary;
             this.tooltip = "";
+            this.totalCount = 0;
             this.items = new ArrayList<>();
         }
 
@@ -94,7 +75,7 @@ public class ProjectStats {
             return items.stream().filter(item -> item.getName().equals(name)).findFirst().orElse(null);
         }
 
-        public MetricReport computeRatios() {
+        public MetricsReport computeRatios() {
             if (this.totalCount == 0) {
                 long sum = 0;
                 for (MetricItem item : items) {
@@ -115,14 +96,14 @@ public class ProjectStats {
             return this;
         }
 
-        public MetricReport addTotal() {
+        public MetricsReport addTotal() {
             computeRatios();
             add(new MetricItem("TOTAL", this.totalCount, 1.0f, "total of all lines"));
             return this;
         }
 
         @Override
-        public int compareTo(MetricReport other) {
+        public int compareTo(MetricsReport other) {
             int c = Integer.compare(this.order, other.order);
             if (c != 0) return c;
             return this.name.compareTo(other.name);
@@ -151,8 +132,10 @@ public class ProjectStats {
 
         @Override
         public int compareTo(MetricItem other) {
-            // highest first
-            return Long.compare(other.count, this.count);
+            // highest count first; then name for stable ordering
+            int c = Long.compare(other.count, this.count);
+            if (c != 0) return c;
+            return this.name.compareTo(other.name);
         }
     }
 }

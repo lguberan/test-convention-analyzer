@@ -1,7 +1,7 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ProjectStats.MetricItem;
-import com.guberan.testanalyzer.model.ProjectStats.MetricReport;
+import com.guberan.testanalyzer.model.ProjectAnalysis.MetricItem;
+import com.guberan.testanalyzer.model.ProjectAnalysis.MetricsReport;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -11,11 +11,11 @@ import java.awt.event.MouseEvent;
 import java.text.DecimalFormat;
 
 /**
- * Generic panel that renders a {@link MetricReport} as a JTable.
+ * Generic panel that renders a {@link MetricsReport} as a JTable.
  *
  * <p>Intended as a reusable "report tab" view: one report = one table.</p>
  */
-public class MetricReportPanel extends JPanel {
+public class MetricsReportPanel extends JPanel {
 
     private final JTextArea notes = new JTextArea();
     private final MetricTableModel model = new MetricTableModel();
@@ -35,7 +35,7 @@ public class MetricReportPanel extends JPanel {
         }
     };
 
-    public MetricReportPanel(MetricReport report) {
+    public MetricsReportPanel(MetricsReport report) {
         super(new BorderLayout(8, 8));
 
         configureNotesArea(notes);
@@ -62,7 +62,7 @@ public class MetricReportPanel extends JPanel {
         area.setBorder(BorderFactory.createEmptyBorder(2, 2, 6, 2));
     }
 
-    public void setReport(MetricReport report) {
+    public void setReport(MetricsReport report) {
         if (report == null) {
             notes.setText("No report.");
             model.clear();

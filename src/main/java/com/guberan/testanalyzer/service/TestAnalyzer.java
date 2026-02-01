@@ -24,7 +24,7 @@ public class TestAnalyzer {
     private final PhrasePatternModel patternModel = new PhrasePatternModel(false);
 
 
-    public ProjectStats analyze(Path projectRoot, Consumer<String> progress) {
+    public ProjectAnalysis analyze(Path projectRoot, Consumer<String> progress) {
         progress.accept("Scanning files…");
         ScanResult scan = scanner.scan(projectRoot);
 
@@ -50,54 +50,42 @@ public class TestAnalyzer {
         //ConventionSummary convention = new ConventionInferer().infer(testNaming);
 
         // assemble
-        ProjectStats stats = new ProjectStats();
-        stats.setProjectRoot(projectRoot.toString());
-//        stats.setTotalFiles(scan.totalFiles());
-//        stats.setTotalJavaFiles(totalJavaFiles);
-//        stats.setTotalJavaSourceFiles(javaSourceFiles.size());
-//        stats.setTotalJavaTestFiles(javaTestFiles.size());
+        ProjectAnalysis projectAnalysis = new ProjectAnalysis();
+        projectAnalysis.setProjectRoot(projectRoot.toString());
 
-        createSourceVsTestReport(stats, scan, javaSourceFiles.size(), javaTestFiles.size());
-        createExtensionReport(stats, scan);
-
-        // stats.setTestNamingStats(testNaming);
+        createSourceVsTestReport(projectAnalysis, scan, javaSourceFiles.size(), javaTestFiles.size());
+        createExtensionReport(projectAnalysis, scan);
 
         // reporting
-        tokenModel.createTokenReport(stats);
-        namingModel.createNamingReport(stats);
-        patternModel.createPatternReport(stats);
+        tokenModel.createTokenReport(projectAnalysis);
+        namingModel.createNamingReport(projectAnalysis);
+        patternModel.createPatternReport(projectAnalysis);
 
-        // String patternSummary = patternStats.renderTopPatterns(50);
-
-        //stats.setConventionSummary(convention);
-        // stats.setPatternSummary(patternSummary);
-
-        return stats;
+        return projectAnalysis;
     }
 
     private Map<String, Path> buildSourceIndex(Path root, List<Path> sourceFiles) {
         Map<String, Path> map = new HashMap<>();
         for (Path p : sourceFiles) {
-            String fullyQualifiedClassName = PathUtil.fqnFromMainJavaPath(root, p).orElse(null);
-            if (fullyQualifiedClassName != null) map.put(fullyQualifiedClassName, p);
+            PathUtil.fqnFromMainJavaPath(root, p).ifPresent(fullyQualifiedClassName -> map.put(fullyQualifiedClassName, p));
         }
         return map;
     }
 
-    void createExtensionReport(ProjectStats stats, ScanResult scan) {
+    void createExtensionReport(ProjectAnalysis projectAnalysis, ScanResult scan) {
 
         // Top extensions
-        List<ProjectStats.MetricItem> topFileTypes = scan.extensionCounts()
+        List<ProjectAnalysis.MetricItem> topFileTypes = scan.extensionCounts()
                 .entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .limit(10)
-                .map(ProjectStats.MetricItem::of)
+                .map(ProjectAnalysis.MetricItem::of)
                 .collect(Collectors.toList());
 
 
-        stats.addReport(new ProjectStats.MetricReport(
-                ProjectStats.ReportEnum.FILE_TYPES.name(),
-                ProjectStats.ReportEnum.FILE_TYPES.ordinal(),
+        projectAnalysis.addReport(new ProjectAnalysis.MetricsReport(
+                ProjectAnalysis.ReportId.FILE_TYPES.name(),
+                ProjectAnalysis.ReportId.FILE_TYPES.ordinal(),
                 "Files Type (Top 10)",
                 "Top file extensions by count (useful to understand the project composition).",
                 "",
@@ -105,20 +93,20 @@ public class TestAnalyzer {
                 topFileTypes));
     }
 
-    void createSourceVsTestReport(ProjectStats stats, ScanResult scan, long totalSrcFiles, long totalTestFiles) {
+    void createSourceVsTestReport(ProjectAnalysis projectAnalysis, ScanResult scan, long totalSrcFiles, long totalTestFiles) {
 
         long totalFiles = scan.totalFiles();
         long totalJavaFiles = scan.javaFiles().size();
 
-        List<ProjectStats.MetricItem> metrics = new ArrayList<>();
-        metrics.add(new ProjectStats.MetricItem("Total files", totalFiles, 1.0f, ""));
-        metrics.add(new ProjectStats.MetricItem(".java files", totalJavaFiles, (float) totalJavaFiles / totalFiles, ""));
-        metrics.add(new ProjectStats.MetricItem("Java sources", totalSrcFiles, (float) totalSrcFiles / totalJavaFiles, ""));
-        metrics.add(new ProjectStats.MetricItem("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
+        List<ProjectAnalysis.MetricItem> metrics = new ArrayList<>();
+        metrics.add(new ProjectAnalysis.MetricItem("Total files", totalFiles, 1.0f, ""));
+        metrics.add(new ProjectAnalysis.MetricItem(".java files", totalJavaFiles, (float) totalJavaFiles / totalFiles, ""));
+        metrics.add(new ProjectAnalysis.MetricItem("Java sources", totalSrcFiles, (float) totalSrcFiles / totalJavaFiles, ""));
+        metrics.add(new ProjectAnalysis.MetricItem("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
 
-        stats.addReport(new ProjectStats.MetricReport(
-                ProjectStats.ReportEnum.SRC_VS_TEST.name(),
-                ProjectStats.ReportEnum.SRC_VS_TEST.ordinal(),
+        projectAnalysis.addReport(new ProjectAnalysis.MetricsReport(
+                ProjectAnalysis.ReportId.SRC_VS_TEST.name(),
+                ProjectAnalysis.ReportId.SRC_VS_TEST.ordinal(),
                 "Java Source vs Test",
                 "Breakdown of Java files into production sources vs test sources (based on src/main/java and src/test/java).",
                 "",

@@ -1,16 +1,14 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ProjectStats.MetricItem;
+import com.guberan.testanalyzer.model.ProjectAnalysis.MetricItem;
 
 import javax.swing.table.AbstractTableModel;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class MetricTableModel extends AbstractTableModel {
 
-    private static final DecimalFormat PCT = new DecimalFormat("0.00%");
     private final List<MetricItem> rows = new ArrayList<>();
     private String[] columnNames = {"Metric", "Value", "Percent"};
 
