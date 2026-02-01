@@ -1,7 +1,5 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ResultsPanel;
-
 import javax.swing.*;
 import java.awt.*;
 

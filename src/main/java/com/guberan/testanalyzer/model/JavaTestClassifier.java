@@ -1,4 +1,4 @@
-package com.guberan.testanalyzer.service;
+package com.guberan.testanalyzer.model;
 
 import java.nio.file.Path;
 

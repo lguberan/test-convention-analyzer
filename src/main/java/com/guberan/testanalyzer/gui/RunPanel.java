@@ -45,7 +45,7 @@ public class RunPanel extends JPanel {
     private final JButton urlMenuBtn = new JButton("▼");
     private final JPopupMenu urlMenu = new JPopupMenu();
     private final JTextField urlField = new JTextField();
-    private final JTextField pathField = new JTextField("/Volumes/Datamag/IdeaProjects/junit-framework");
+    private final JTextField pathField = new JTextField("/Volumes/Datamag/IdeaProjects/spring-boot"); // /Volumes/Datamag/IdeaProjects/junit-framework");
     private final JButton browseBtn = new JButton("Browse…");
     private final JButton analyzeBtn = new JButton("Analyze");
     private final JProgressBar progress = new JProgressBar();

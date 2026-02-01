@@ -72,6 +72,13 @@ public class NamingUtil {
         return hasUpperInside;
     }
 
+    // no upper case (but allows "_" etc...)
+    public static boolean noUpperCase(String s) {
+
+        if (s == null || s.isBlank()) return false;
+        return s.chars().noneMatch(Character::isUpperCase);
+    }
+
     /**
      * Returns true if the supplied method name looks like a sentence/BDD-style phrase.
      *
@@ -147,5 +154,15 @@ public class NamingUtil {
         }
 
         return null;
+    }
+
+    public static boolean followsWhenThen(String name) {
+        if (name == null || name.isBlank()) return false;
+
+        int when = name.indexOf("When");
+        if (when < 0) return false;
+
+        int then = name.indexOf("Then", when + 4);
+        return then >= 0;
     }
 }

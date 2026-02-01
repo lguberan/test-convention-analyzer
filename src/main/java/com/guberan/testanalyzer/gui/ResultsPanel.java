@@ -28,17 +28,11 @@ public class ResultsPanel extends JPanel {
     private final JTextArea javaNotes = new JTextArea();
     private final JTextArea testNamingNotes = new JTextArea();
     private final JTextArea patternsNotes = new JTextArea();
-    private final JTextArea ngramsNotes = new JTextArea();
+    private final JTextArea tokenNotes = new JTextArea();
 
     // Text areas
     private final JTextArea summaryArea = new JTextArea();
-    private final JTextArea ngramArea = new JTextArea();
 
-    // Tables
-    private final JTable fileTypesTable = new JTable();
-    private final JTable javaTable = new JTable();
-    private final JTable testNamingTable = new JTable();
-    private final JTable patternTable = new JTable();
 
     /**
      * Creates the results panel and initializes all Swing components.
@@ -47,21 +41,21 @@ public class ResultsPanel extends JPanel {
         setLayout(new BorderLayout(8, 8));
 
         configureTextArea(summaryArea);
-        configureTextArea(ngramArea);
 
         configureNotesArea(summaryNotes);
         configureNotesArea(fileTypesNotes);
         configureNotesArea(javaNotes);
         configureNotesArea(testNamingNotes);
         configureNotesArea(patternsNotes);
-        configureNotesArea(ngramsNotes);
+        configureNotesArea(tokenNotes);
 
         tabs.addTab("Summary", tabWithNotes(summaryNotes, new JScrollPane(summaryArea)));
-        tabs.addTab("File Types (Top 10)", tabWithNotes(fileTypesNotes, new JScrollPane(fileTypesTable)));
-        tabs.addTab("Java Source vs Test", tabWithNotes(javaNotes, new JScrollPane(javaTable)));
-        tabs.addTab("Test Method Naming", tabWithNotes(testNamingNotes, new JScrollPane(testNamingTable)));
-        tabs.addTab("Patterns", tabWithNotes(patternsNotes, new JScrollPane(patternTable)));
-        tabs.addTab("N-grams", tabWithNotes(ngramsNotes, new JScrollPane(ngramArea)));
+//        tabs.addTab("File Types (Top 10)", tabWithNotes(fileTypesNotes, new JScrollPane(fileTypesTable)));
+//        tabs.addTab("Java Source vs Test", tabWithNotes(javaNotes, new JScrollPane(javaTable)));
+//        tabs.addTab("Test Method Naming", tabWithNotes(testNamingNotes, new JScrollPane(testNamingTable)));
+//        tabs.addTab("Patterns", tabWithNotes(patternsNotes, new JScrollPane(patternTable)));
+//        tabs.addTab("Tokens", tabWithNotes(tokenNotes, new JScrollPane(tokenTable)));
+
 
         add(tabs, BorderLayout.CENTER);
 
@@ -110,7 +104,6 @@ public class ResultsPanel extends JPanel {
             String s = line.trim();
             if (s.isEmpty()) continue;
 
-            // Try to parse: COUNT (PCT%) : PATTERN
             int pctOpen = s.indexOf('(');
             int pctClose = s.indexOf(')');
             int colon = s.indexOf(':');
@@ -119,7 +112,7 @@ public class ResultsPanel extends JPanel {
             }
 
             String countPart = s.substring(0, pctOpen).trim();
-            String pctPart = s.substring(pctOpen + 1, pctClose).trim(); // like "12.4%"
+            String pctPart = s.substring(pctOpen + 1, pctClose).trim();
             String pattern = s.substring(colon + 1).trim();
 
             long count;
@@ -140,68 +133,61 @@ public class ResultsPanel extends JPanel {
      * Resets the panel to an empty state (before any analysis was run).
      */
     private void setEmptyModels() {
-        fileTypesTable.setModel(new DefaultTableModel(new Object[]{"Extension", "Files", "Percent"}, 0));
-        javaTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
-        testNamingTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
-        patternTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
+//        fileTypesTable.setModel(new DefaultTableModel(new Object[]{"Extension", "Files", "Percent"}, 0));
+//        javaTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
+//        testNamingTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
+//        patternTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
 
         summaryNotes.setText("High-level report and key totals for the analyzed project.");
         fileTypesNotes.setText("Top file extensions by count (useful to understand the project composition).");
         javaNotes.setText("Breakdown of Java files into production sources vs test sources (based on src/main/java and src/test/java).");
         testNamingNotes.setText("How test method names are written (prefix 'test', underscores, camelCase, @DisplayName, etc.).");
         patternsNotes.setText("Most common phrase templates extracted from test method names (e.g., 'When <any> Then <any>').");
-        ngramsNotes.setText("Token-level statistics (n-grams). Useful for exploratory analysis, but less actionable than phrase patterns.");
+        tokenNotes.setText("Token-level statistics. Useful for exploratory analysis, but less actionable than phrase patterns.");
 
-        ngramArea.setText("");
         summaryArea.setText("No results yet.");
+    }
+
+    private void insertReportTab(ProjectStats.MetricReport report) {
+        String name = report.getName();
+        int index = tabs.indexOfTab(name);
+        MetricReportPanel reportPanel = new MetricReportPanel(report);
+        if (index >= 0) {
+            tabs.remove(index);
+            tabs.insertTab(name, null, reportPanel, null, index);
+        } else {
+            tabs.addTab(name, reportPanel);
+        }
     }
 
     /**
      * Populates the panel with fresh analysis results.
-     *
-     * @param stats computed project statistics (must not be null)
      */
     public void setResults(ProjectStats stats) {
         // Summary
         summaryArea.setText(stats.prettySummary());
         summaryArea.setCaretPosition(0);
 
-        // File types
-        var ftModel = new DefaultTableModel(new Object[]{"Extension", "Files", "Percent"}, 0);
-        stats.getReport("fileTypes").getItems().forEach(fileType -> {
-            ftModel.addRow(new Object[]{fileType.getName(), fileType.getCount(), PCT.format(fileType.getPercent())});
-        });
-//        stats.getTopFileTypes().forEach(s ->
-//                ftModel.addRow(new Object[]{s.getExtension(), s.getCount(), PCT.format(s.getPercent())})
-//        );
-        fileTypesTable.setModel(ftModel);
 
-        // Java breakdown
-        var javaModel = new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0);
-        javaModel.addRow(new Object[]{"Total files", stats.getTotalFiles(), PCT.format(1.0)});
-        javaModel.addRow(new Object[]{".java files", stats.getJavaFiles(), PCT.format(stats.ratio(stats.getJavaFiles(), stats.getTotalFiles()))});
-        javaModel.addRow(new Object[]{"Java sources", stats.getJavaSourceFiles(), PCT.format(stats.ratio(stats.getJavaSourceFiles(), stats.getJavaFiles()))});
-        javaModel.addRow(new Object[]{"Java tests", stats.getJavaTestFiles(), PCT.format(stats.ratio(stats.getJavaTestFiles(), stats.getJavaFiles()))});
-        javaTable.setModel(javaModel);
+        for (ProjectStats.MetricReport report : stats.getReports().values().stream().sorted().toList()) {
+            insertReportTab(report);
+        }
 
 
         // Test naming metrics
-        var tn = stats.getTestNamingStats();
-        var tnModel = new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0);
-        tnModel.addRow(new Object[]{"Test methods (detected)", tn.getTotalTestMethods(), PCT.format(1.0)});
-        tnModel.addRow(new Object[]{"Start with 'test'", tn.getStartsWithTest(), PCT.format(stats.ratio(tn.getStartsWithTest(), tn.getTotalTestMethods()))});
-        tnModel.addRow(new Object[]{"Contain '_'", tn.getContainsUnderscore(), PCT.format(stats.ratio(tn.getContainsUnderscore(), tn.getTotalTestMethods()))});
-        tnModel.addRow(new Object[]{"CamelCase / lowerCamel", tn.getCamelCase(), PCT.format(stats.ratio(tn.getCamelCase(), tn.getTotalTestMethods()))});
-        tnModel.addRow(new Object[]{"Phrase-like (BDD/spec)", tn.getPhraseLike(), PCT.format(stats.ratio(tn.getPhraseLike(), tn.getTotalTestMethods()))});
-        tnModel.addRow(new Object[]{"@DisplayName present", tn.getDisplayNameUsed(), PCT.format(stats.ratio(tn.getDisplayNameUsed(), tn.getTotalTestMethods()))});
-        tnModel.addRow(new Object[]{"Same as source method (heuristic)", tn.getSameAsSourceMethod(), PCT.format(stats.ratio(tn.getSameAsSourceMethod(), tn.getTotalTestMethods()))});
-        testNamingTable.setModel(tnModel);
+        // var tn = stats.getTestNamingStats();
+        //    var tnModel = new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0);
+//        tnModel.addRow(new Object[]{"Test methods (detected)", tn.getTotalTestMethods(), PCT.format(1.0)});
+//        tnModel.addRow(new Object[]{"Start with 'test'", tn.getStartsWithTest(), PCT.format(stats.ratio(tn.getStartsWithTest(), tn.getTotalTestMethods()))});
+//        tnModel.addRow(new Object[]{"Contain '_'", tn.getContainsUnderscore(), PCT.format(stats.ratio(tn.getContainsUnderscore(), tn.getTotalTestMethods()))});
+//        tnModel.addRow(new Object[]{"CamelCase / lowerCamel", tn.getCamelCase(), PCT.format(stats.ratio(tn.getCamelCase(), tn.getTotalTestMethods()))});
+//        tnModel.addRow(new Object[]{"Phrase-like (BDD/spec)", tn.getPhraseLike(), PCT.format(stats.ratio(tn.getPhraseLike(), tn.getTotalTestMethods()))});
+//        tnModel.addRow(new Object[]{"@DisplayName present", tn.getDisplayNameUsed(), PCT.format(stats.ratio(tn.getDisplayNameUsed(), tn.getTotalTestMethods()))});
+//        tnModel.addRow(new Object[]{"Same as source method (heuristic)", tn.getSameAsSourceMethod(), PCT.format(stats.ratio(tn.getSameAsSourceMethod(), tn.getTotalTestMethods()))});
+        //      testNamingTable.setModel(tnModel);
 
-        // Patterns
-        patternTable.setModel(patternTableModelFromReport(stats.getPatternSummary()));
+        // Patterns (rendered as table)
+        //  patternTable.setModel(patternTableModelFromReport(stats.getPatternSummary()));
 
-        // N-grams
-        ngramArea.setText(stats.getNgramSummary() == null ? "" : stats.getNgramSummary());
-        ngramArea.setCaretPosition(0);
     }
 }

@@ -1,6 +1,6 @@
 package com.guberan.testanalyzer.service;
 
-import com.guberan.testanalyzer.util.ExtensionUtil;
+import com.guberan.testanalyzer.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -9,11 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
@@ -65,7 +61,7 @@ public class ProjectScanner {
 
                     totalFiles.incrementAndGet();
 
-                    String ext = ExtensionUtil.extensionOf(file.getFileName().toString());
+                    String ext = StringUtil.extensionOf(file.getFileName().toString());
                     extensionCounts.merge(ext, 1L, Long::sum);
 
                     if ("java".equals(ext)) {

@@ -1,12 +1,9 @@
-package com.guberan.testanalyzer.service;
+package com.guberan.testanalyzer.model;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.guberan.testanalyzer.util.StringUtil;
+
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -23,9 +20,10 @@ import java.util.regex.Pattern;
  * template (compressed):
  * When <any> Then Throws <any> Exception
  */
-public final class PhrasePatternAnalyzer {
+public final class PhrasePatternModel {
 
     private static final Pattern TOKEN_SPLIT = Pattern.compile("(?<!^)(?=[A-Z])|[_\\-]");
+    private static final int DEFAULT_TOP_K = 50;
 
     /**
      * Words we want to keep as "anchors" in the template.
@@ -47,11 +45,11 @@ public final class PhrasePatternAnalyzer {
      */
     private static final String ANY = "<any>";
 
-    private final Map<String, Long> patternCounts = new HashMap<>();
+    private final Map<String, ProjectStats.MetricItem> patternMap = new HashMap<>();
     private final boolean granular; // true => <w> <w> ; false => <any>
     private long total = 0;
 
-    public PhrasePatternAnalyzer(boolean granular) {
+    public PhrasePatternModel(boolean granular) {
         this.granular = granular;
     }
 
@@ -135,45 +133,50 @@ public final class PhrasePatternAnalyzer {
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
+    // ----------------- acceptMethod -----------------
+
     /**
-     * Accept one method name (already filtered to executable test methods, ideally).
+     * Accept one method (already filtered to executable test methods, ideally).
      */
-    public void acceptMethodName(String methodName) {
+    public void acceptMethod(MethodDeclaration method) {
+        String methodName = method.getNameAsString();
         List<String> tokens = tokenizeAndNormalize(methodName);
         if (tokens.isEmpty()) return;
 
         total++;
 
         String pattern = toPattern(tokens, granular);
-        patternCounts.merge(pattern, 1L, Long::sum);
+        patternMap.merge(pattern, new ProjectStats.MetricItem(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
     }
 
-    // ----------------- Core logic -----------------
+    private ProjectStats.MetricItem mergeMetrictems(ProjectStats.MetricItem item1, ProjectStats.MetricItem item2) {
 
-    /**
-     * Returns the top patterns, ordered by count desc.
-     */
-    public List<Entry<String, Long>> topPatterns(int k) {
-        return patternCounts.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                .limit(k)
+        return new ProjectStats.MetricItem(item1.getName(),
+                item1.getCount() + item2.getCount(),
+                item1.getPercent() + item2.getPercent(),
+                StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
+        );
+    }
+
+
+    public void createPatternReport(ProjectStats stats) {
+
+        List<ProjectStats.MetricItem> top50Patterns = patternMap.values().stream()
+                .sorted()
+                .limit(DEFAULT_TOP_K)
                 .toList();
+
+        stats.addReport(
+                new ProjectStats.MetricReport(
+                        ProjectStats.ReportEnum.PATTERNS.name(),
+                        ProjectStats.ReportEnum.PATTERNS.ordinal(),
+                        "Patterns",
+                        "Builds common phrase templates from test method names. Method names are tokenized (camelCase, _, -), normalized (e.g., throw/throws → Throws, assert/expect → Expect), keywords are preserved as anchors, and all other words are replaced with <w> (granular) or <any> (compressed). The most frequent patterns are then reported.",
+                        "",
+                        total,
+                        top50Patterns)
+                        .computeRatios()
+        );
     }
 
-    /**
-     * Renders a compact report: "count (pct%) : pattern".
-     */
-    public String renderTop(int k) {
-        StringBuilder sb = new StringBuilder(8_192);
-        for (var e : topPatterns(k)) {
-            long c = e.getValue();
-            double pct = total == 0 ? 0.0 : (100.0 * c / total);
-            sb.append(String.format(Locale.ROOT, "%5d (%5.1f%%) : %s%n", c, pct, e.getKey()));
-        }
-        return sb.toString();
-    }
-
-    public long totalAnalyzed() {
-        return total;
-    }
 }

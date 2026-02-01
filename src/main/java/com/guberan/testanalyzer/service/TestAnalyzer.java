@@ -2,10 +2,7 @@ package com.guberan.testanalyzer.service;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.guberan.testanalyzer.model.ConventionSummary;
-import com.guberan.testanalyzer.model.ProjectStats;
-import com.guberan.testanalyzer.model.TestNamingStats;
-import com.guberan.testanalyzer.model.TokenNgramModel;
+import com.guberan.testanalyzer.model.*;
 import com.guberan.testanalyzer.service.ProjectScanner.ScanResult;
 import com.guberan.testanalyzer.util.NamingUtil;
 import com.guberan.testanalyzer.util.PathUtil;
@@ -22,55 +19,20 @@ public class TestAnalyzer {
     private final ProjectScanner scanner = new ProjectScanner();
     private final JavaTestClassifier classifier = new JavaTestClassifier();
     private final JavaAstService ast = new JavaAstService();
-    private final TokenNgramModel model = new TokenNgramModel();
+    private final TokenModel tokenModel = new TokenModel();
+    private final NamingModel namingModel = new NamingModel();
+    private final PhrasePatternModel patternModel = new PhrasePatternModel(false);
 
-    private static String buildNgramSummary(List<TokenNgramModel.Trigram> topTrigrams,
-                                            List<TokenNgramModel.Bigram> topBigrams,
-                                            List<Map.Entry<String, Long>> topTokens,
-                                            List<String> typicalTokens) {
-
-        StringBuilder sb = new StringBuilder(8_192);
-
-        sb.append("Typical tokens (greedy, trigram model):\n");
-        sb.append(String.join(" ", typicalTokens));
-        sb.append("\n\n");
-
-        sb.append("Top tokens (100):\n");
-        for (var e : topTokens) {
-            sb.append(String.format("- %-24s %d\n", e.getKey(), e.getValue()));
-        }
-        sb.append("\n");
-
-        sb.append("Top bigrams (100):\n");
-        for (var b : topBigrams) {
-            sb.append(String.format("- %-16s -> %-16s %d\n", b.prev(), b.next(), b.count()));
-        }
-        sb.append("\n");
-
-        sb.append("Top trigrams (100):\n");
-        for (var t : topTrigrams) {
-            sb.append(String.format("- %-16s %-16s -> %-16s %d\n", t.prev1(), t.prev2(), t.next(), t.count()));
-        }
-
-        return sb.toString();
-    }
 
     public ProjectStats analyze(Path projectRoot, Consumer<String> progress) {
         progress.accept("Scanning files…");
         ScanResult scan = scanner.scan(projectRoot);
 
-        // Top extensions
-        List<ProjectStats.MetricItem> topFileTypes = scan.extensionCounts().entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                .limit(10)
-                .map(e -> new ProjectStats.MetricItem(e.getKey(), e.getValue(), 0f, ""))
-                .collect(Collectors.toList());
-
-
         // classify java
         progress.accept("Classifying Java files…");
-        long javaFiles = scan.javaFiles().size();
-        Map<Boolean, List<Path>> parts = scan.javaFiles().stream().collect(Collectors.partitioningBy(classifier::isTestSource));
+        long totalJavaFiles = scan.javaFiles().size();
+        Map<Boolean, List<Path>> parts = scan.javaFiles().stream()
+                .collect(Collectors.partitioningBy(classifier::isTestSource));
 
         List<Path> javaTestFiles = parts.get(true);
         List<Path> javaSourceFiles = parts.get(false);
@@ -81,45 +43,34 @@ public class TestAnalyzer {
 
         // analyze tests
         progress.accept("Analyzing test methods…");
-        var testNaming = new TestNamingStats();
-        PatternStats patternStats = analyzeTestFiles(projectRoot, javaTestFiles, sourceByFqn, testNaming, progress);
+        PatternStats patternStats = analyzeTestFiles(projectRoot, javaTestFiles, sourceByFqn, progress);
 
         // infer convention
         progress.accept("Inferring convention…");
-        ConventionSummary convention = new ConventionInferer().infer(testNaming);
+        //ConventionSummary convention = new ConventionInferer().infer(testNaming);
 
         // assemble
         ProjectStats stats = new ProjectStats();
         stats.setProjectRoot(projectRoot.toString());
-        stats.setTotalFiles(scan.totalFiles());
-        stats.setJavaFiles(javaFiles);
-        stats.setJavaSourceFiles(javaSourceFiles.size());
-        stats.setJavaTestFiles(javaTestFiles.size());
+//        stats.setTotalFiles(scan.totalFiles());
+//        stats.setTotalJavaFiles(totalJavaFiles);
+//        stats.setTotalJavaSourceFiles(javaSourceFiles.size());
+//        stats.setTotalJavaTestFiles(javaTestFiles.size());
 
-        ProjectStats.MetricReport fileTypes = new ProjectStats.MetricReport(
-                "fileTypes",
-                "Files Type (Top 10)",
-                "Top file extensions by count (useful to understand the project composition).",
-                "",
-                scan.totalFiles(),
-                topFileTypes)
-                .addTotal();
-        stats.addReport(fileTypes);
+        createSourceVsTestReport(stats, scan, javaSourceFiles.size(), javaTestFiles.size());
+        createExtensionReport(stats, scan);
 
-        stats.setTestNamingStats(testNaming);
+        // stats.setTestNamingStats(testNaming);
 
         // reporting
-        var topTrigrams = model.topTrigrams(100);
-        var topBigrams = model.topBigrams(100);
-        var topTokens = model.topUnigrams(100);
-        var typical = model.generateGreedy(12);
+        tokenModel.createTokenReport(stats);
+        namingModel.createNamingReport(stats);
+        patternModel.createPatternReport(stats);
 
-        String ngramSummary = buildNgramSummary(topTrigrams, topBigrams, topTokens, typical);
-        String patternSummary = patternStats.renderTopPatterns(50);
+        // String patternSummary = patternStats.renderTopPatterns(50);
 
-        stats.setConventionSummary(convention);
-        stats.setNgramSummary(ngramSummary);
-        stats.setPatternSummary(patternSummary);
+        //stats.setConventionSummary(convention);
+        // stats.setPatternSummary(patternSummary);
 
         return stats;
     }
@@ -133,10 +84,52 @@ public class TestAnalyzer {
         return map;
     }
 
+    void createExtensionReport(ProjectStats stats, ScanResult scan) {
+
+        // Top extensions
+        List<ProjectStats.MetricItem> topFileTypes = scan.extensionCounts()
+                .entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(10)
+                .map(ProjectStats.MetricItem::of)
+                .collect(Collectors.toList());
+
+
+        stats.addReport(new ProjectStats.MetricReport(
+                ProjectStats.ReportEnum.FILE_TYPES.name(),
+                ProjectStats.ReportEnum.FILE_TYPES.ordinal(),
+                "Files Type (Top 10)",
+                "Top file extensions by count (useful to understand the project composition).",
+                "",
+                scan.totalFiles(),
+                topFileTypes));
+    }
+
+    void createSourceVsTestReport(ProjectStats stats, ScanResult scan, long totalSrcFiles, long totalTestFiles) {
+
+        long totalFiles = scan.totalFiles();
+        long totalJavaFiles = scan.javaFiles().size();
+
+        List<ProjectStats.MetricItem> metrics = new ArrayList<>();
+        metrics.add(new ProjectStats.MetricItem("Total files", totalFiles, 1.0f, ""));
+        metrics.add(new ProjectStats.MetricItem(".java files", totalJavaFiles, (float) totalJavaFiles / totalFiles, ""));
+        metrics.add(new ProjectStats.MetricItem("Java sources", totalSrcFiles, (float) totalSrcFiles / totalJavaFiles, ""));
+        metrics.add(new ProjectStats.MetricItem("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
+
+        stats.addReport(new ProjectStats.MetricReport(
+                ProjectStats.ReportEnum.SRC_VS_TEST.name(),
+                ProjectStats.ReportEnum.SRC_VS_TEST.ordinal(),
+                "Java Source vs Test",
+                "Breakdown of Java files into production sources vs test sources (based on src/main/java and src/test/java).",
+                "",
+                totalFiles,
+                metrics));
+    }
+
+
     private PatternStats analyzeTestFiles(Path root,
                                           List<Path> testFiles,
                                           Map<String, Path> sourceByFqn,
-                                          TestNamingStats out,
                                           Consumer<String> progress) {
 
         // cache parsed source method sets
@@ -179,37 +172,16 @@ public class TestAnalyzer {
             // test methods: methods with @Test-ish annotations
             var methods = compilationUnit.findAll(MethodDeclaration.class);
 
-            for (var m : methods) {
+            for (MethodDeclaration m : methods) {
                 if (!isTestMethod(m)) continue;
-
-                out.setTotalTestMethods(out.getTotalTestMethods() + 1);
 
                 String name = m.getNameAsString();
                 patternStats.accept(name);
-                model.acceptMethodName(name);
-
-                if (name.startsWith("test")) {
-                    out.incStartsWithTest();
-                }
-                if (name.contains("_")) {
-                    out.incContainsUnderscore();
-                }
-                if (NamingUtil.isCamelLike(name)) {
-                    out.incCamelCase();
-                }
-                if (NamingUtil.isPhraseLike(name)) {
-                    out.incPhraseLike();
-                }
-                if (hasDisplayName(m)) {
-                    out.incDisplayNameUsed();
-                }
-                if (!sourceMethods.isEmpty() && sourceMethods.contains(name)) {
-                    out.incSameAsSourceMethod();
-                }
+                tokenModel.acceptMethod(m);
+                namingModel.acceptMethod(m, sourceMethods);
+                patternModel.acceptMethod(m);
             }
         }
-
-
         return patternStats;
     }
 
@@ -235,7 +207,7 @@ public class TestAnalyzer {
         });
     }
 
-    private boolean hasDisplayName(MethodDeclaration m) {
+    private boolean hasDisplayAnnotation(MethodDeclaration m) {
         return m.getAnnotations().stream().anyMatch(a -> a.getNameAsString().equals("DisplayName"));
     }
 
@@ -260,7 +232,7 @@ public class TestAnalyzer {
          * map to the same pattern (reduces stats fragmentation).
          */
         private static List<String> tokenizeAndNormalize(String methodName) {
-            List<String> tokens = TokenNgramModel.tokenize(methodName);
+            List<String> tokens = TokenModel.tokenize(methodName);
             if (tokens.isEmpty()) return tokens;
 
             for (int i = 0; i < tokens.size(); i++) {
