@@ -1,6 +1,6 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ProjectAnalysis.MetricItem;
+import com.guberan.testanalyzer.model.ProjectAnalysis.MetricRecord;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.List;
 
 public class MetricTableModel extends AbstractTableModel {
 
-    private final List<MetricItem> rows = new ArrayList<>();
+    private final List<MetricRecord> rows = new ArrayList<>();
     private String[] columnNames = {"Metric", "Value", "Percent"};
 
     // ---------- basic model ----------
@@ -41,7 +41,7 @@ public class MetricTableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        MetricItem item = rows.get(rowIndex);
+        MetricRecord item = rows.get(rowIndex);
 
         return switch (columnIndex) {
             case 0 -> item.getName();
@@ -53,17 +53,17 @@ public class MetricTableModel extends AbstractTableModel {
 
     // ---------- convenience API (important part) ----------
 
-    public MetricItem getRow(int row) {
+    public MetricRecord getRow(int row) {
         return rows.get(row);
     }
 
-    public void setRows(List<MetricItem> items) {
+    public void setRows(List<MetricRecord> items) {
         rows.clear();
         rows.addAll(items);
         fireTableDataChanged();
     }
 
-    public void addRow(MetricItem item) {
+    public void addRow(MetricRecord item) {
         int r = rows.size();
         rows.add(item);
         fireTableRowsInserted(r, r);

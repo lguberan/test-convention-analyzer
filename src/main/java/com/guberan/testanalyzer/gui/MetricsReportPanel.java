@@ -1,6 +1,6 @@
 package com.guberan.testanalyzer.gui;
 
-import com.guberan.testanalyzer.model.ProjectAnalysis.MetricItem;
+import com.guberan.testanalyzer.model.ProjectAnalysis.MetricRecord;
 import com.guberan.testanalyzer.model.ProjectAnalysis.MetricsReport;
 
 import javax.swing.*;
@@ -26,7 +26,7 @@ public class MetricsReportPanel extends JPanel {
             if (viewRow < 0) return null;
 
             int modelRow = convertRowIndexToModel(viewRow);
-            MetricItem item = model.getRow(modelRow);
+            MetricRecord item = model.getRow(modelRow);
 
             if (item.getTooltip() != null && !item.getTooltip().isBlank()) {
                 return item.getTooltip();

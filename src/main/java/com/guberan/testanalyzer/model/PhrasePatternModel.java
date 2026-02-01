@@ -45,7 +45,7 @@ public final class PhrasePatternModel {
      */
     private static final String ANY = "<any>";
 
-    private final Map<String, ProjectAnalysis.MetricItem> patternMap = new HashMap<>();
+    private final Map<String, ProjectAnalysis.MetricRecord> patternMap = new HashMap<>();
     private final boolean granular; // true => <w> <w> ; false => <any>
     private long total = 0;
 
@@ -146,12 +146,12 @@ public final class PhrasePatternModel {
         total++;
 
         String pattern = toPattern(tokens, granular);
-        patternMap.merge(pattern, new ProjectAnalysis.MetricItem(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
+        patternMap.merge(pattern, new ProjectAnalysis.MetricRecord(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
     }
 
-    private ProjectAnalysis.MetricItem mergeMetrictems(ProjectAnalysis.MetricItem item1, ProjectAnalysis.MetricItem item2) {
+    private ProjectAnalysis.MetricRecord mergeMetrictems(ProjectAnalysis.MetricRecord item1, ProjectAnalysis.MetricRecord item2) {
 
-        return new ProjectAnalysis.MetricItem(item1.getName(),
+        return new ProjectAnalysis.MetricRecord(item1.getName(),
                 item1.getCount() + item2.getCount(),
                 item1.getPercent() + item2.getPercent(),
                 StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
@@ -161,7 +161,7 @@ public final class PhrasePatternModel {
 
     public void createPatternReport(ProjectAnalysis projectAnalysis) {
 
-        List<ProjectAnalysis.MetricItem> top50Patterns = patternMap.values().stream()
+        List<ProjectAnalysis.MetricRecord> top50Patterns = patternMap.values().stream()
                 .sorted()
                 .limit(DEFAULT_TOP_K)
                 .toList();

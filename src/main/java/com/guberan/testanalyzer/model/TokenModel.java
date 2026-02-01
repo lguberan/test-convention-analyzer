@@ -28,7 +28,7 @@ public final class TokenModel {
     private static final Pattern TOKEN_SPLIT = Pattern.compile("(?<!^)(?=[A-Z])|[_\\-]");
 
     // private final Map<String, Long> tokenMap = new HashMap<>();
-    private final Map<String, ProjectAnalysis.MetricItem> tokenMap = new HashMap<>();
+    private final Map<String, ProjectAnalysis.MetricRecord> tokenMap = new HashMap<>();
 
     private long sequences = 0;
     private long totalTokens = 0;
@@ -59,13 +59,13 @@ public final class TokenModel {
         totalTokens += tokens.size();
 
         for (String t : tokens) {
-            tokenMap.merge(t, new ProjectAnalysis.MetricItem(t, 1L, 0.0f, methodName), this::mergeMetrictems);
+            tokenMap.merge(t, new ProjectAnalysis.MetricRecord(t, 1L, 0.0f, methodName), this::mergeMetrictems);
         }
     }
 
-    private ProjectAnalysis.MetricItem mergeMetrictems(ProjectAnalysis.MetricItem item1, ProjectAnalysis.MetricItem item2) {
+    private ProjectAnalysis.MetricRecord mergeMetrictems(ProjectAnalysis.MetricRecord item1, ProjectAnalysis.MetricRecord item2) {
 
-        return new ProjectAnalysis.MetricItem(item1.getName(),
+        return new ProjectAnalysis.MetricRecord(item1.getName(),
                 item1.getCount() + item2.getCount(),
                 item1.getPercent() + item2.getPercent(),
                 StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
@@ -74,7 +74,7 @@ public final class TokenModel {
 
     public void createTokenReport(ProjectAnalysis projectAnalysis) {
 
-        List<ProjectAnalysis.MetricItem> top50Tokens = tokenMap.values().stream()
+        List<ProjectAnalysis.MetricRecord> top50Tokens = tokenMap.values().stream()
                 .sorted()
                 .limit(DEFAULT_TOP_K)
                 .toList();

@@ -75,11 +75,11 @@ public class TestAnalyzer {
     void createExtensionReport(ProjectAnalysis projectAnalysis, ScanResult scan) {
 
         // Top extensions
-        List<ProjectAnalysis.MetricItem> topFileTypes = scan.extensionCounts()
+        List<ProjectAnalysis.MetricRecord> topFileTypes = scan.extensionCounts()
                 .entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .limit(10)
-                .map(ProjectAnalysis.MetricItem::of)
+                .map(ProjectAnalysis.MetricRecord::of)
                 .collect(Collectors.toList());
 
 
@@ -98,11 +98,11 @@ public class TestAnalyzer {
         long totalFiles = scan.totalFiles();
         long totalJavaFiles = scan.javaFiles().size();
 
-        List<ProjectAnalysis.MetricItem> metrics = new ArrayList<>();
-        metrics.add(new ProjectAnalysis.MetricItem("Total files", totalFiles, 1.0f, ""));
-        metrics.add(new ProjectAnalysis.MetricItem(".java files", totalJavaFiles, (float) totalJavaFiles / totalFiles, ""));
-        metrics.add(new ProjectAnalysis.MetricItem("Java sources", totalSrcFiles, (float) totalSrcFiles / totalJavaFiles, ""));
-        metrics.add(new ProjectAnalysis.MetricItem("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
+        List<ProjectAnalysis.MetricRecord> metrics = new ArrayList<>();
+        metrics.add(new ProjectAnalysis.MetricRecord("Total files", totalFiles, 1.0f, ""));
+        metrics.add(new ProjectAnalysis.MetricRecord(".java files", totalJavaFiles, (float) totalJavaFiles / totalFiles, ""));
+        metrics.add(new ProjectAnalysis.MetricRecord("Java sources", totalSrcFiles, (float) totalSrcFiles / totalJavaFiles, ""));
+        metrics.add(new ProjectAnalysis.MetricRecord("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
 
         projectAnalysis.addReport(new ProjectAnalysis.MetricsReport(
                 ProjectAnalysis.ReportId.SRC_VS_TEST.name(),

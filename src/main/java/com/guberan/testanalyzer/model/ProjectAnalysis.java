@@ -55,7 +55,7 @@ public class ProjectAnalysis {
         private String summary;
         private String tooltip;
         private long totalCount;
-        private List<MetricItem> items;
+        private List<MetricRecord> items;
 
         public MetricsReport(String id, int order, String name, String summary) {
             this.id = id;
@@ -67,29 +67,29 @@ public class ProjectAnalysis {
             this.items = new ArrayList<>();
         }
 
-        public boolean add(MetricItem metricItem) {
-            return items.add(metricItem);
+        public boolean add(MetricRecord metricRecord) {
+            return items.add(metricRecord);
         }
 
-        public MetricItem get(String name) {
+        public MetricRecord get(String name) {
             return items.stream().filter(item -> item.getName().equals(name)).findFirst().orElse(null);
         }
 
         public MetricsReport computeRatios() {
             if (this.totalCount == 0) {
                 long sum = 0;
-                for (MetricItem item : items) {
+                for (MetricRecord item : items) {
                     sum += item.count;
                 }
                 this.totalCount = sum;
             }
             if (this.totalCount == 0) {
-                for (MetricItem item : items) {
+                for (MetricRecord item : items) {
                     item.percent = 0.0f;
                 }
             } else {
                 float floatSum = this.totalCount;
-                for (MetricItem item : items) {
+                for (MetricRecord item : items) {
                     item.percent = item.getCount() / floatSum;
                 }
             }
@@ -98,7 +98,7 @@ public class ProjectAnalysis {
 
         public MetricsReport addTotal() {
             computeRatios();
-            add(new MetricItem("TOTAL", this.totalCount, 1.0f, "total of all lines"));
+            add(new MetricRecord("TOTAL", this.totalCount, 1.0f, "total of all lines"));
             return this;
         }
 
@@ -112,18 +112,18 @@ public class ProjectAnalysis {
 
     @Data
     @AllArgsConstructor
-    public static final class MetricItem implements Comparable<MetricItem> {
+    public static final class MetricRecord implements Comparable<MetricRecord> {
         private String name;
         private long count;
         private float percent;
         private String tooltip;
 
-        public static MetricItem of(String name, long count) {
-            return new MetricItem(name, count, 0.0f, "");
+        public static MetricRecord of(String name, long count) {
+            return new MetricRecord(name, count, 0.0f, "");
         }
 
-        public static MetricItem of(Map.Entry<String, Long> entry) {
-            return new MetricItem(entry.getKey(), entry.getValue(), 0.0f, "");
+        public static MetricRecord of(Map.Entry<String, Long> entry) {
+            return new MetricRecord(entry.getKey(), entry.getValue(), 0.0f, "");
         }
 
         public long inc() {
@@ -131,7 +131,7 @@ public class ProjectAnalysis {
         }
 
         @Override
-        public int compareTo(MetricItem other) {
+        public int compareTo(MetricRecord other) {
             // highest count first; then name for stable ordering
             int c = Long.compare(other.count, this.count);
             if (c != 0) return c;
