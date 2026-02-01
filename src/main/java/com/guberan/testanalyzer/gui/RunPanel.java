@@ -167,7 +167,7 @@ public class RunPanel extends JPanel {
 
             @Override
             protected void process(java.util.List<String> chunks) {
-                if (!chunks.isEmpty()) status.setText(chunks.get(chunks.size() - 1));
+                if (!chunks.isEmpty()) status.setText(chunks.getLast());
             }
 
             @Override
