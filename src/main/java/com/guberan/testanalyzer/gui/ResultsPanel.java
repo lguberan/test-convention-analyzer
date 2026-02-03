@@ -3,7 +3,6 @@ package com.guberan.testanalyzer.gui;
 import com.guberan.testanalyzer.model.ProjectAnalysis;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 /**
@@ -18,11 +17,11 @@ public class ResultsPanel extends JPanel {
 
     // Per-tab notes (short explanatory text shown above the main content)
     private final JTextArea summaryNotes = new JTextArea();
-    private final JTextArea fileTypesNotes = new JTextArea();
-    private final JTextArea javaNotes = new JTextArea();
-    private final JTextArea testNamingNotes = new JTextArea();
-    private final JTextArea patternsNotes = new JTextArea();
-    private final JTextArea tokenNotes = new JTextArea();
+//    private final JTextArea fileTypesNotes = new JTextArea();
+//    private final JTextArea javaNotes = new JTextArea();
+//    private final JTextArea testNamingNotes = new JTextArea();
+//    private final JTextArea patternsNotes = new JTextArea();
+//    private final JTextArea tokenNotes = new JTextArea();
 
     // Text areas
     private final JTextArea summaryArea = new JTextArea();
@@ -37,18 +36,13 @@ public class ResultsPanel extends JPanel {
         configureTextArea(summaryArea);
 
         configureNotesArea(summaryNotes);
-        configureNotesArea(fileTypesNotes);
-        configureNotesArea(javaNotes);
-        configureNotesArea(testNamingNotes);
-        configureNotesArea(patternsNotes);
-        configureNotesArea(tokenNotes);
+//        configureNotesArea(fileTypesNotes);
+//        configureNotesArea(javaNotes);
+//        configureNotesArea(testNamingNotes);
+//        configureNotesArea(patternsNotes);
+//        configureNotesArea(tokenNotes);
 
         tabs.addTab("Summary", tabWithNotes(summaryNotes, new JScrollPane(summaryArea)));
-//        tabs.addTab("File Types (Top 10)", tabWithNotes(fileTypesNotes, new JScrollPane(fileTypesTable)));
-//        tabs.addTab("Java Source vs Test", tabWithNotes(javaNotes, new JScrollPane(javaTable)));
-//        tabs.addTab("Test Method Naming", tabWithNotes(testNamingNotes, new JScrollPane(testNamingTable)));
-//        tabs.addTab("Patterns", tabWithNotes(patternsNotes, new JScrollPane(patternTable)));
-//        tabs.addTab("Tokens", tabWithNotes(tokenNotes, new JScrollPane(tokenTable)));
 
 
         add(tabs, BorderLayout.CENTER);
@@ -86,58 +80,11 @@ public class ResultsPanel extends JPanel {
         return p;
     }
 
-    /**
-     * Parses the textual pattern report and fills a Metric/Value/Percent table.
-     * Expected line format: "  58 (12.4%) : When <any> Then <any>".
-     */
-    private static DefaultTableModel patternTableModelFromReport(String report) {
-        DefaultTableModel model = new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0);
-        if (report == null || report.isBlank()) return model;
-
-        for (String line : report.split("\\R")) {
-            String s = line.trim();
-            if (s.isEmpty()) continue;
-
-            int pctOpen = s.indexOf('(');
-            int pctClose = s.indexOf(')');
-            int colon = s.indexOf(':');
-            if (pctOpen < 0 || pctClose < 0 || colon < 0 || pctClose < pctOpen) {
-                continue;
-            }
-
-            String countPart = s.substring(0, pctOpen).trim();
-            String pctPart = s.substring(pctOpen + 1, pctClose).trim();
-            String pattern = s.substring(colon + 1).trim();
-
-            long count;
-            try {
-                count = Long.parseLong(countPart);
-            } catch (NumberFormatException ignore) {
-                continue;
-            }
-
-            String pctNormalized = pctPart.endsWith("%") ? pctPart : (pctPart + "%");
-            model.addRow(new Object[]{pattern, count, pctNormalized});
-        }
-
-        return model;
-    }
 
     /**
      * Resets the panel to an empty state (before any analysis was run).
      */
     private void setEmptyModels() {
-//        fileTypesTable.setModel(new DefaultTableModel(new Object[]{"Extension", "Files", "Percent"}, 0));
-//        javaTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
-//        testNamingTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
-//        patternTable.setModel(new DefaultTableModel(new Object[]{"Metric", "Value", "Percent"}, 0));
-
-        summaryNotes.setText("High-level report and key totals for the analyzed project.");
-        fileTypesNotes.setText("Top file extensions by count (useful to understand the project composition).");
-        javaNotes.setText("Breakdown of Java files into production sources vs test sources (based on src/main/java and src/test/java).");
-        testNamingNotes.setText("How test method names are written (prefix 'test', underscores, camelCase, @DisplayName, etc.).");
-        patternsNotes.setText("Most common phrase templates extracted from test method names (e.g., 'When <any> Then <any>').");
-        tokenNotes.setText("Token-level statistics. Useful for exploratory analysis, but less actionable than phrase patterns.");
 
         summaryArea.setText("No results yet.");
     }

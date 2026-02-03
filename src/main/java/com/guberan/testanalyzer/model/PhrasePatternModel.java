@@ -24,6 +24,7 @@ public final class PhrasePatternModel {
 
     private static final Pattern TOKEN_SPLIT = Pattern.compile("(?<!^)(?=[A-Z])|[_\\-]");
     private static final int DEFAULT_TOP_K = 50;
+    private static final int MAX_EXAMPLE = 50;
 
     /**
      * Words we want to keep as "anchors" in the template.
@@ -138,7 +139,7 @@ public final class PhrasePatternModel {
     /**
      * Accept one method (already filtered to executable test methods, ideally).
      */
-    public void acceptMethod(MethodDeclaration method) {
+    public void acceptMethod(MethodDeclaration method, String testClass) {
         String methodName = method.getNameAsString();
         List<String> tokens = tokenizeAndNormalize(methodName);
         if (tokens.isEmpty()) return;
@@ -146,7 +147,7 @@ public final class PhrasePatternModel {
         total++;
 
         String pattern = toPattern(tokens, granular);
-        patternMap.merge(pattern, new ProjectAnalysis.MetricRecord(pattern, 1L, 0.0f, methodName), this::mergeMetrictems);
+        patternMap.merge(pattern, new ProjectAnalysis.MetricRecord(pattern, 1L, 0.0f, testClass + "." + methodName), this::mergeMetrictems);
     }
 
     private ProjectAnalysis.MetricRecord mergeMetrictems(ProjectAnalysis.MetricRecord item1, ProjectAnalysis.MetricRecord item2) {
@@ -154,7 +155,7 @@ public final class PhrasePatternModel {
         return new ProjectAnalysis.MetricRecord(item1.getName(),
                 item1.getCount() + item2.getCount(),
                 item1.getPercent() + item2.getPercent(),
-                StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
+                StringUtil.concatWithMaxLines(item1.getSamples(), item2.getSamples(), MAX_EXAMPLE)
         );
     }
 
@@ -168,8 +169,7 @@ public final class PhrasePatternModel {
 
         projectAnalysis.addReport(
                 new ProjectAnalysis.MetricsReport(
-                        ProjectAnalysis.ReportId.PATTERNS.name(),
-                        ProjectAnalysis.ReportId.PATTERNS.ordinal(),
+                        ProjectAnalysis.ReportId.PATTERNS,
                         "Patterns",
                         "Builds common phrase templates from test method names. Method names are tokenized (camelCase, _, -), normalized (e.g., throw/throws → Throws, assert/expect → Expect), keywords are preserved as anchors, and all other words are replaced with <w> (granular) or <any> (compressed). The most frequent patterns are then reported.",
                         "",

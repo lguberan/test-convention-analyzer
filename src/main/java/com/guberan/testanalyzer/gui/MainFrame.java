@@ -11,6 +11,16 @@ public class MainFrame extends JFrame {
         setSize(1100, 750);
         setLocationRelativeTo(null);
 
+        Image icon = new ImageIcon(MainFrame.class.getResource("/icons/icon.png")).getImage();
+        setIconImage(icon);
+
+        if (Taskbar.isTaskbarSupported()) {
+            Taskbar taskbar = Taskbar.getTaskbar();
+            if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                taskbar.setIconImage(icon);
+            }
+        }
+
         var runPanel = new RunPanel();
         var resultsPanel = new ResultsPanel();
 

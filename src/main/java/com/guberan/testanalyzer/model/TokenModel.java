@@ -18,7 +18,8 @@ import java.util.regex.Pattern;
  */
 public final class TokenModel {
 
-    private static final int DEFAULT_TOP_K = 50;
+    private static final int MAX_TOKEN = 50;
+    private static final int MAX_EXAMPLE = 50;
 
     /**
      * Split points:
@@ -30,7 +31,7 @@ public final class TokenModel {
     // private final Map<String, Long> tokenMap = new HashMap<>();
     private final Map<String, ProjectAnalysis.MetricRecord> tokenMap = new HashMap<>();
 
-    private long sequences = 0;
+    private long totalMethods = 0;
     private long totalTokens = 0;
 
     /**
@@ -50,16 +51,16 @@ public final class TokenModel {
     /**
      * Ingest one test method
      */
-    public void acceptMethod(MethodDeclaration method) {
+    public void acceptMethod(MethodDeclaration method, String testClass) {
         String methodName = method.getNameAsString();
         List<String> tokens = tokenize(methodName);
         if (tokens.isEmpty()) return;
 
-        sequences++;
+        totalMethods++;
         totalTokens += tokens.size();
 
         for (String t : tokens) {
-            tokenMap.merge(t, new ProjectAnalysis.MetricRecord(t, 1L, 0.0f, methodName), this::mergeMetrictems);
+            tokenMap.merge(t, new ProjectAnalysis.MetricRecord(t, 1L, 0.0f, testClass + "." + methodName), this::mergeMetrictems);
         }
     }
 
@@ -68,28 +69,27 @@ public final class TokenModel {
         return new ProjectAnalysis.MetricRecord(item1.getName(),
                 item1.getCount() + item2.getCount(),
                 item1.getPercent() + item2.getPercent(),
-                StringUtil.concatWithMaxLines(item1.getTooltip(), item2.getTooltip(), 20)
+                StringUtil.concatWithMaxLines(item1.getSamples(), item2.getSamples(), MAX_EXAMPLE)
         );
     }
 
     public void createTokenReport(ProjectAnalysis projectAnalysis) {
 
-        List<ProjectAnalysis.MetricRecord> top50Tokens = tokenMap.values().stream()
+        List<ProjectAnalysis.MetricRecord> topTokens = tokenMap.values().stream()
                 .sorted()
-                .limit(DEFAULT_TOP_K)
+                .limit(MAX_TOKEN)
                 .toList();
 
-        projectAnalysis.addReport(
-                new ProjectAnalysis.MetricsReport(
-                        ProjectAnalysis.ReportId.TOKENS.name(),
-                        ProjectAnalysis.ReportId.TOKENS.ordinal(),
-                        "Tokens",
-                        "Top tokens (50)",
-                        "",
-                        totalTokens,
-                        top50Tokens)
-                        .computeRatios()
-        );
+        ProjectAnalysis.MetricsReport report = new ProjectAnalysis.MetricsReport(
+                ProjectAnalysis.ReportId.TOKENS,
+                "Tokens",
+                "Top 50 tokens (%,d total tokens across %,d test methods)".formatted(totalTokens, totalMethods),
+                "",
+                totalTokens,
+                topTokens)
+                .computeRatios();
+
+        projectAnalysis.addReport(report);
     }
 
 }

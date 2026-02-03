@@ -12,8 +12,10 @@ import java.awt.*;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.prefs.Preferences;
 
 /**
  * Main "run" panel of the Swing GUI.
@@ -40,17 +42,18 @@ public class RunPanel extends JPanel {
     }};
 
     /* ---------- UI ---------- */
-
+    // Persist last used values between runs
+    private static final Preferences PREFS = Preferences.userNodeForPackage(RunPanel.class);
+    private static final String KEY_LAST_PATH = "lastLocalPath";
     private final JComboBox<String> presetCombo = new JComboBox<>();
     private final JButton urlMenuBtn = new JButton("▼");
     private final JPopupMenu urlMenu = new JPopupMenu();
     private final JTextField urlField = new JTextField();
-    private final JTextField pathField = new JTextField("/Volumes/Datamag/IdeaProjects/spring-boot"); // /Volumes/Datamag/IdeaProjects/junit-framework");
+    private final JTextField pathField = new JTextField(); // /Volumes/Datamag/IdeaProjects/junit-framework"); /Volumes/Datamag/IdeaProjects/spring-boot
     private final JButton browseBtn = new JButton("Browse…");
     private final JButton analyzeBtn = new JButton("Analyze");
     private final JProgressBar progress = new JProgressBar();
     private final JLabel status = new JLabel("Ready.");
-
     /**
      * Callback invoked when analysis completes successfully.
      */
@@ -76,6 +79,9 @@ public class RunPanel extends JPanel {
         status.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
 
         setupUrlMenu();
+
+        // restore last used values
+        pathField.setText(PREFS.get(KEY_LAST_PATH, ""));
     }
 
     private void setupUrlMenu() {
@@ -135,7 +141,9 @@ public class RunPanel extends JPanel {
         var chooser = new JFileChooser();
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            pathField.setText(chooser.getSelectedFile().toPath().toString());
+            String selected = chooser.getSelectedFile().toPath().toString();
+            pathField.setText(selected);
+            PREFS.put(KEY_LAST_PATH, selected);
         }
     }
 
@@ -148,26 +156,45 @@ public class RunPanel extends JPanel {
         var url = Optional.ofNullable(urlField.getText()).map(String::trim).filter(s -> !s.isBlank());
         var localPath = Optional.ofNullable(pathField.getText()).map(String::trim).filter(s -> !s.isBlank());
 
-        SwingWorker<ProjectAnalysis, String> worker = new SwingWorker<>() {
+        // persist values
+        if (url.isEmpty()) {
+            localPath.ifPresent(p -> PREFS.put(KEY_LAST_PATH, p));
+        }
+
+        SwingWorker<ProjectAnalysis, ProgressInfo> worker = new SwingWorker<>() {
             @Override
             protected ProjectAnalysis doInBackground() throws Exception {
                 Path root;
                 if (url.isPresent()) {
-                    publish("Cloning repository…");
+                    publish(new ProgressInfo("Cloning repository…", 0, 0));
                     root = new GitService().cloneToTemp(url.get());
+                    pathField.setText(root.toString());
+                    log.info("localPath: {}", localPath);
                 } else if (localPath.isPresent()) {
                     root = Path.of(localPath.get());
                 } else {
                     throw new IllegalArgumentException("Provide either Git URL or Local Path.");
                 }
 
-                publish("Analyzing project: " + root);
+                publish(new ProgressInfo("Analyzing project: " + root, 0, 0));
                 return new TestAnalyzer().analyze(root, this::publish);
             }
 
             @Override
-            protected void process(java.util.List<String> chunks) {
-                if (!chunks.isEmpty()) status.setText(chunks.getLast());
+            protected void process(java.util.List<ProgressInfo> chunks) {
+                if (!chunks.isEmpty()) {
+                    ProgressInfo pi = chunks.getLast();
+
+                    // set status if changed
+                    if (pi.info != null && !Objects.equals(status.getText(), pi.info)) {
+                        status.setText(pi.info);
+                    }
+                    if (progress.getMaximum() != pi.max) {
+                        progress.setMaximum(pi.max);
+                        progress.setIndeterminate(pi.max <= 0);
+                    }
+                    progress.setValue(pi.value);
+                }
             }
 
             @Override
@@ -188,6 +215,8 @@ public class RunPanel extends JPanel {
         worker.execute();
     }
 
+    ;
+
     private void setRunningUi(String statusText) {
         analyzeBtn.setEnabled(false);
         progress.setIndeterminate(true);
@@ -200,5 +229,8 @@ public class RunPanel extends JPanel {
         progress.setString("Idle");
         analyzeBtn.setEnabled(true);
         status.setText(statusText);
+    }
+
+    public record ProgressInfo(String info, int max, int value) {
     }
 }

@@ -12,7 +12,7 @@ import java.util.Set;
 @Slf4j
 public class NamingModel {
 
-    private static final int MAX_EXAMPLES = 20;
+    private static final int MAX_EXAMPLES = 50;
 
     private long totalTestMethods = 0;
 
@@ -41,56 +41,51 @@ public class NamingModel {
     /**
      * Ingest one test method
      */
-    public void acceptMethod(MethodDeclaration m, Set<String> sourceMethods) {
+    public void acceptMethod(MethodDeclaration m, String testClass, Set<String> sourceMethods) {
         String name = m.getNameAsString();
-        if ("shutsown".equals(name)) {
-            log.info("Shutting own shutsown method");
-        }
-        //List<String> tokens = tokenize(methodName);
-        // if (tokens.isEmpty()) return;
 
         totalTestMethods++;
 
         if (hasDisplayAnnotation(m)) {
             displayAnnotUsed++;
             if (displayAnnotUsedExamples.size() <= MAX_EXAMPLES) {
-                displayAnnotUsedExamples.add(name);
+                displayAnnotUsedExamples.add(testClass + "." + name);
             }
         }
         if (name.startsWith("test")) {
             startsWithTest++;
             if (startsWithTestExamples.size() <= MAX_EXAMPLES) {
-                startsWithTestExamples.add(name);
+                startsWithTestExamples.add(testClass + "." + name);
             }
         }
         if (NamingUtil.followsWhenThen(name)) {
             hasWhenThen++;
             if (hasWhenThenExamples.size() <= MAX_EXAMPLES) {
-                hasWhenThenExamples.add(name);
+                hasWhenThenExamples.add(testClass + "." + name);
             }
         }
-        if (NamingUtil.isPhraseLike(name)) {
+        if (NamingUtil.isBDDLike(name)) {
             phraseLike++;
             if (phraseLikeExamples.size() <= MAX_EXAMPLES) {
-                phraseLikeExamples.add(name);
+                phraseLikeExamples.add(testClass + "." + name);
             }
         }
         if (!sourceMethods.isEmpty() && sourceMethods.contains(name)) {
             sameAsSourceMethod++;
             if (sameAsSourceMethodExamples.size() <= MAX_EXAMPLES) {
-                sameAsSourceMethodExamples.add(name);
+                sameAsSourceMethodExamples.add(testClass + "." + name);
             }
         }
         if (name.contains("_")) {
             containsUnderscore++;
             if (containsUnderscoreExamples.size() <= MAX_EXAMPLES) {
-                containsUnderscoreExamples.add(name);
+                containsUnderscoreExamples.add(testClass + "." + name);
             }
         }
         if (NamingUtil.noUpperCase(name)) {
             noCamelCase++;
             if (noCamelCaseExamples.size() <= MAX_EXAMPLES) {
-                noCamelCaseExamples.add(name);
+                noCamelCaseExamples.add(testClass + "." + name);
             }
         }
 //        if (name.matches("(?si).*arrange.*act.*assert.*")) { // TODO source code
@@ -114,8 +109,7 @@ public class NamingModel {
 
         projectAnalysis.addReport(
                 new ProjectAnalysis.MetricsReport(
-                        ProjectAnalysis.ReportId.TEST_METHOD_NAMING.name(),
-                        ProjectAnalysis.ReportId.TEST_METHOD_NAMING.ordinal(),
+                        ProjectAnalysis.ReportId.TEST_METHOD_NAMING,
                         "Test naming",
                         "How test method names are written (prefix 'test', underscores, camelCase, @DisplayName, etc.).",
                         "",

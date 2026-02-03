@@ -2,6 +2,7 @@ package com.guberan.testanalyzer.service;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.guberan.testanalyzer.gui.RunPanel;
 import com.guberan.testanalyzer.model.*;
 import com.guberan.testanalyzer.service.ProjectScanner.ScanResult;
 import com.guberan.testanalyzer.util.NamingUtil;
@@ -24,13 +25,13 @@ public class TestAnalyzer {
     private final PhrasePatternModel patternModel = new PhrasePatternModel(false);
 
 
-    public ProjectAnalysis analyze(Path projectRoot, Consumer<String> progress) {
-        progress.accept("Scanning files…");
+    public ProjectAnalysis analyze(Path projectRoot, Consumer<RunPanel.ProgressInfo> progress) {
+        progress.accept(new RunPanel.ProgressInfo("Scanning files…", 0, 0));
         ScanResult scan = scanner.scan(projectRoot);
 
         // classify java
-        progress.accept("Classifying Java files…");
-        long totalJavaFiles = scan.javaFiles().size();
+        int totalJavaFiles = scan.javaFiles().size();
+        progress.accept(new RunPanel.ProgressInfo("Classifying Java files…", 0, 0));
         Map<Boolean, List<Path>> parts = scan.javaFiles().stream()
                 .collect(Collectors.partitioningBy(classifier::isTestSource));
 
@@ -38,15 +39,15 @@ public class TestAnalyzer {
         List<Path> javaSourceFiles = parts.get(false);
 
         // build quick index for source files by “class” path heuristic
-        progress.accept("Indexing source classes…");
+        progress.accept(new RunPanel.ProgressInfo("Indexing source classes…", 0, 0));
         Map<String, Path> sourceByFqn = buildSourceIndex(projectRoot, javaSourceFiles);
 
         // analyze tests
-        progress.accept("Analyzing test methods…");
+        progress.accept(new RunPanel.ProgressInfo("Analyzing test methods…", 0, 0));
         PatternStats patternStats = analyzeTestFiles(projectRoot, javaTestFiles, sourceByFqn, progress);
 
         // infer convention
-        progress.accept("Inferring convention…");
+        progress.accept(new RunPanel.ProgressInfo("Inferring convention…", 0, 0));
         //ConventionSummary convention = new ConventionInferer().infer(testNaming);
 
         // assemble
@@ -84,13 +85,13 @@ public class TestAnalyzer {
 
 
         projectAnalysis.addReport(new ProjectAnalysis.MetricsReport(
-                ProjectAnalysis.ReportId.FILE_TYPES.name(),
-                ProjectAnalysis.ReportId.FILE_TYPES.ordinal(),
+                ProjectAnalysis.ReportId.FILE_TYPES,
                 "Files Type (Top 10)",
                 "Top file extensions by count (useful to understand the project composition).",
                 "",
                 scan.totalFiles(),
-                topFileTypes));
+                topFileTypes)
+                .computeRatios());
     }
 
     void createSourceVsTestReport(ProjectAnalysis projectAnalysis, ScanResult scan, long totalSrcFiles, long totalTestFiles) {
@@ -105,8 +106,7 @@ public class TestAnalyzer {
         metrics.add(new ProjectAnalysis.MetricRecord("Java tests", totalTestFiles, (float) totalTestFiles / totalJavaFiles, ""));
 
         projectAnalysis.addReport(new ProjectAnalysis.MetricsReport(
-                ProjectAnalysis.ReportId.SRC_VS_TEST.name(),
-                ProjectAnalysis.ReportId.SRC_VS_TEST.ordinal(),
+                ProjectAnalysis.ReportId.SRC_VS_TEST,
                 "Java Source vs Test",
                 "Breakdown of Java files into production sources vs test sources (based on src/main/java and src/test/java).",
                 "",
@@ -118,15 +118,22 @@ public class TestAnalyzer {
     private PatternStats analyzeTestFiles(Path root,
                                           List<Path> testFiles,
                                           Map<String, Path> sourceByFqn,
-                                          Consumer<String> progress) {
+                                          Consumer<RunPanel.ProgressInfo> progress) {
 
         // cache parsed source method sets
         Map<Path, Set<String>> sourceMethodsCache = new HashMap<>();
         PatternStats patternStats = new PatternStats();
+        long lastProgressMs = System.currentTimeMillis();
+        final long progressIntervalMs = 100L;
 
         for (int i = 0; i < testFiles.size(); i++) {
             Path testFile = testFiles.get(i);
-            if (i % 200 == 0) progress.accept("Parsing tests… " + i + "/" + testFiles.size());
+
+            long now = System.currentTimeMillis();
+            if (now - lastProgressMs >= progressIntervalMs) {
+                progress.accept(new RunPanel.ProgressInfo("Parsing tests… " + i + "/" + testFiles.size(), testFiles.size(), i));
+                lastProgressMs = now;
+            }
 
             Optional<CompilationUnit> cuOpt = ast.parse(testFile);
             if (cuOpt.isEmpty()) continue;
@@ -165,9 +172,9 @@ public class TestAnalyzer {
 
                 String name = m.getNameAsString();
                 patternStats.accept(name);
-                tokenModel.acceptMethod(m);
-                namingModel.acceptMethod(m, sourceMethods);
-                patternModel.acceptMethod(m);
+                tokenModel.acceptMethod(m, testClass);
+                namingModel.acceptMethod(m, testClass, sourceMethods);
+                patternModel.acceptMethod(m, testClass);
             }
         }
         return patternStats;
@@ -207,7 +214,8 @@ public class TestAnalyzer {
                 "expect",
                 "throws",
                 "exception", "error",
-                "fail", "fails", "return", "returns"
+                "fail",
+                "return"
         );
 
         private static final int MAX_EXAMPLES_PER_PATTERN = 20;
@@ -236,6 +244,16 @@ public class TestAnalyzer {
                 if (t.equals("assert") || t.equals("asserts") || t.equals("asserted")
                         || t.equals("expect") || t.equals("expects") || t.equals("expected")) {
                     tokens.set(i, "expect");
+                }
+
+                // returns and return => returns
+                if (t.equals("returns") || t.equals("return")) {
+                    tokens.set(i, "return");
+                }
+
+                // fails and fail => fails
+                if (t.equals("fails") || t.equals("fail")) {
+                    tokens.set(i, "fail");
                 }
             }
 
